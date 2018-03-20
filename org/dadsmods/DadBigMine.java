@@ -11,7 +11,7 @@ import net.minecraft.world.World;
 import net.minecraftforge.event.entity.living.LivingEvent.LivingJumpEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
-public class DadMakeBlock {
+public class DadBigMine {
 
 	static Random random = new Random();
 	
