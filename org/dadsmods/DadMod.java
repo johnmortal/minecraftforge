@@ -13,8 +13,9 @@ public class DadMod {
 	
 	@EventHandler
 	public void init(FMLInitializationEvent event) {
+		MinecraftForge.EVENT_BUS.register(new BigMaze());
 //		MinecraftForge.EVENT_BUS.register(new DadBigMine());
-		MinecraftForge.EVENT_BUS.register(new BigWorld());
+//		MinecraftForge.EVENT_BUS.register(new BigWorld());
 	}
 
 }
