@@ -28,8 +28,12 @@ public class BigMaze {
 	static int interiorYSize;
 	static int interiorZSize;
 
+	static int mazeXSize = 7;
+	static int mazeYSize = 6;
+	static int mazeZSize = 5;
+	
 	static IBlockState obsidian = Blocks.OBSIDIAN.getDefaultState();
-	static IBlockState glow = Blocks.GLOWSTONE.getDefaultState();
+	static IBlockState glow = Blocks.SEA_LANTERN.getDefaultState();
 	static IBlockState glass = Blocks.GLASS.getDefaultState();
 	static IBlockState stone = Blocks.STONE.getDefaultState();
 	static IBlockState red = Blocks.RED_GLAZED_TERRACOTTA.getDefaultState();
@@ -39,14 +43,22 @@ public class BigMaze {
 	static IBlockState yWall = green;
 	static IBlockState zWall = red;
 	
+//	static boolean mazeIsCorporealNow = false;
+	
 	@SubscribeEvent
 	public void maze(LivingJumpEvent event) {
+		
 		World world = event.getEntity().getEntityWorld();
 		if (! (event.getEntity() instanceof EntityPlayer)) return;
+
+//		if ( mazeIsCorporealNow ) return;
+		
 		int x = (int) Math.floor(event.getEntity().posX);
 		int y = (int) Math.floor(event.getEntity().posY);
 		int z = (int) Math.floor(event.getEntity().posZ);		
-		createMaze(world, x, y, z, 3, 3, 3);
+		createMaze(world, x - 2, y - 2, z - 1, mazeXSize, mazeYSize, mazeZSize);
+		
+//		mazeIsCorporealNow = true;
 	}
 	
 	
@@ -56,15 +68,18 @@ public class BigMaze {
 
 		Maze maze = MazeGenerator.GenerateKruskalMaze3D(xSize, ySize, zSize);
 		
-		interiorXSize = 2;
-		interiorYSize = 2;
-		interiorZSize = 2;
+		interiorXSize = 4;
+		interiorYSize = 4;
+		interiorZSize = 4;
+		
 		
 		
 		createOuterWalls(world, x, y, z, maze);
+		clearInterior(world,x,y,z,maze);
 		createInternalFrame(world, x, y, z, maze);
 		createInnerWalls(world, x, y, z, maze);
-		
+		createAnEntranceAndExit(world, x, y, z, maze);
+//		createRoomInteriors(world, x, y, z, maze);
 		
 		
 		
@@ -79,7 +94,7 @@ public class BigMaze {
 		int zLength = zStep * maze.zSize + 1;
 		
 		for ( int j = 1; j < maze.ySize; j++) {
-			for ( int k = 1; k < maze.zSize + 1; k++ ) {
+			for ( int k = 1; k < maze.zSize; k++ ) {
 				for ( int u = x + 1; u < x + xLength - 1; u ++ ) { 
 					int v = y + j * yStep;
 					int w = z + k * zStep;
@@ -90,7 +105,7 @@ public class BigMaze {
 		}
 		
 		for ( int k = 1; k < maze.zSize; k ++ ) {
-			for ( int i = 0; i < maze.xSize; i ++ ) {
+			for ( int i = 1; i < maze.xSize; i ++ ) {
 				for ( int v = y + 1; v < y + yLength - 1; v ++ ) {
 					int u = x + i * xStep;
 					int w = z + k * zStep;
@@ -112,6 +127,26 @@ public class BigMaze {
 		}
 
 	
+	}
+	
+	static void clearInterior(World world, int x, int y, int z, Maze maze) {
+		int xStep = interiorXSize + 1;
+		int yStep = interiorYSize + 1;
+		int zStep = interiorZSize + 1;
+		int xLength = xStep * maze.xSize + 1;
+		int yLength = yStep * maze.ySize + 1;
+		int zLength = zStep * maze.zSize + 1;
+		
+		// empty out interior
+		for ( int i = 1; i < xLength - 1; i ++ ) {
+			for ( int j = 1; j < yLength - 1; j ++ ) {
+				for ( int k = 1; k < zLength - 1; k ++ ) {
+					BlockPos pos = new BlockPos(x + i,y + j ,z + k);
+					world.setBlockToAir(pos);
+				}
+			}			
+		}
+		
 	}
 	
 	static void createOuterWalls(World world, int x, int y, int z, Maze maze) {
@@ -150,12 +185,56 @@ public class BigMaze {
 				world.setBlockState(pos, yWall);
 			}
 		}
+	}
+
+/*	static void createRoomInteriors(World world, int x, int y, int z, Maze maze) {
+		int xStep = interiorXSize + 1;
+		int yStep = interiorYSize + 1;
+		int zStep = interiorZSize + 1;
+		for ( int i = 0; i < maze.xSize; i ++ ) {
+			for ( int j = 0; j < maze.ySize; j ++ ) {
+				for ( int k = 0; k < maze.zSize; k ++ ) {
+					// create interior x walls
+					int xCorner = x + i * xStep;
+					int yCorner = y + j * yStep;
+					int zCorner = z + k * zStep;
+					for ( int u = 0; u < interiorXSize; u ++ ) {
+						for ( int v = 0; v < interiorYSize; v ++ ) {
+							for ( int w = 0; w < interiorZSize; w ++ ) {
+								BlockPos pos = new BlockPos(xCorner + u + 1, yCorner + v + 1, zCorner + w + 1);
+								world.setBlockToAir(pos);
+							}
+						}						
+					}
+				}
+			}
+		}
+
+	}
+*/	
+	
+	static void createAnEntranceAndExit(World world, int x, int y, int z, Maze maze) {
+		int xStep = interiorXSize + 1;
+		int yStep = interiorYSize + 1;
+		int zStep = interiorZSize + 1;
+		int xLength = xStep * maze.xSize + 1;
+		int yLength = yStep * maze.ySize + 1;
+		int zLength = zStep * maze.zSize + 1;
 		
-		
-		
+		for ( int j = 0; j < interiorYSize; j ++ ) {
+			for ( int k = 0; k < interiorZSize; k ++ ) {
+				BlockPos pos = new BlockPos(x, y + j + 1, z + k + 1);
+				world.setBlockToAir(pos);
+			}
+		}
+		for ( int j = 0; j < interiorYSize; j ++ ) {
+			for ( int k = 0; k < interiorZSize; k ++ ) {
+				BlockPos pos = new BlockPos(x + xLength - 1, y + yLength - j - 2, z + zLength - k - 2);
+				world.setBlockToAir(pos);
+			}
+		}
 		
 	}
-	
 	
 	static void createInnerWalls(World world, int x, int y, int z, Maze maze) {
 		int xStep = interiorXSize + 1;
@@ -187,14 +266,11 @@ public class BigMaze {
 					if ( maze.canMoveZUp(i, j, k) && k < maze.zSize - 1 ) {
 						for ( int u = 0; u < interiorXSize; u ++ ) {
 							for ( int v = 0; v < interiorYSize; v ++ ) {
-								BlockPos pos = new BlockPos(xCorner + u + 1, yCorner + v + 1, zCorner + zStep + 1);
+								BlockPos pos = new BlockPos(xCorner + u + 1, yCorner + v + 1, zCorner + zStep);
 								world.setBlockState(pos, zWall);
 							}
 						}
-					}
-					BlockPos pos = new BlockPos(x,y,z);
-					world.setBlockState(pos,obsidian);
-					
+					}					
 				}
 			}
 		}
@@ -225,100 +301,100 @@ class Maze
 
 
     public int xSize, ySize, zSize;
-    private Boolean[][][] canMoveXDownLayout;
-    private Boolean[][][] canMoveYDownLayout;
-    private Boolean[][][] canMoveZDownLayout;
+    private boolean[][][] canMoveXDownLayout;
+    private boolean[][][] canMoveYDownLayout;
+    private boolean[][][] canMoveZDownLayout;
 
-    public Boolean canMoveXDown(int i, int j, int k)
+    public boolean canMoveXDown(int i, int j, int k)
     {
-        return (i > 0 ) && canMoveXDownLayout[i - 1][j][k];
+        return (i > 0 ) && canMoveXDownLayout[i][j][k];
     }
 
-    public Boolean canMoveXUp(int i, int j, int k)
+    public boolean canMoveXUp(int i, int j, int k)
     {
-        return (i < xSize - 1 ) && canMoveXDownLayout[i][j][k];
+        return (i < xSize - 1 ) && canMoveXDownLayout[i + 1][j][k];
     }
     
-    public Boolean canMoveYDown(int i, int j, int k)
+    public boolean canMoveYDown(int i, int j, int k)
     {
-        return (j > 0 ) && canMoveYDownLayout[i][j - 1][k];
+        return (j > 0 ) && canMoveYDownLayout[i][j][k];
     }
 
-    public Boolean canMoveYUp(int i, int j, int k)
+    public boolean canMoveYUp(int i, int j, int k)
     {
-        return (j < ySize - 1 ) && canMoveYDownLayout[i][j][k];
+        return (j < ySize - 1 ) && canMoveYDownLayout[i][j + 1][k];
     }
 
-    public Boolean canMoveZDown(int i, int j, int k)
+    public boolean canMoveZDown(int i, int j, int k)
     {
-        return (k > 0 ) && canMoveYDownLayout[i][j][k - 1];
+        return (k > 0 ) && canMoveZDownLayout[i][j][k];
     }
 
-    public Boolean canMoveZUp(int i, int j, int k)
+    public boolean canMoveZUp(int i, int j, int k)
     {
-        return (k < zSize - 1 ) && canMoveZDownLayout[i][j][k];
+        return (k < zSize - 1 ) && canMoveZDownLayout[i][j][k + 1];
     }
 
 
     public void blockXDown(int i, int j, int k)
     {
-        canMoveXDownLayout[i - 1][j][k] = false;
+        canMoveXDownLayout[i][j][k] = false;
     }
 
     public void blockXUp(int i, int j, int k)
     {
-        canMoveXDownLayout[i][j][k] = false;
+        canMoveXDownLayout[i + 1][j][k] = false;
     }
 
     public void blockYDown(int i, int j, int k)
     {
-        canMoveYDownLayout[i][j - 1][k] = false;
+        canMoveYDownLayout[i][j][k] = false;
     }
 
     public void blockYUp(int i, int j, int k)
     {
-        canMoveYDownLayout[i][j][k] = false;
+        canMoveYDownLayout[i][j + 1][k] = false;
     }
 
     public void blockZDown(int i, int j, int k)
     {
-        canMoveZDownLayout[i][j][k - 1] = false;
+        canMoveZDownLayout[i][j][k] = false;
     }
 
     public void blockZUp(int i, int j, int k)
     {
-        canMoveZDownLayout[i][j][k] = false;
+        canMoveZDownLayout[i][j][k + 1] = false;
     }
 
     
     public void unblockXDown(int i, int j, int k)
     {
-        canMoveXDownLayout[i - 1][j][k] = true;
+        canMoveXDownLayout[i][j][k] = true;
     }
 
     public void unblockXUp(int i, int j, int k)
     {
-        canMoveXDownLayout[i][j][k] = true;
+        canMoveXDownLayout[i + 1][j][k] = true;
     }
 
     public void unblockYDown(int i, int j, int k)
     {
-        canMoveYDownLayout[i][j - 1][k] = true;
+        canMoveYDownLayout[i][j][k] = true;
     }
 
     public void unblockYUp(int i, int j, int k)
     {
-        canMoveYDownLayout[i][j][k] = true;
+        canMoveYDownLayout[i][j + 1][k] = true;
     }
 
     public void unblockZDown(int i, int j, int k)
     {
-        canMoveZDownLayout[i][j][k - 1] = true;
+        canMoveZDownLayout[i][j][k] = true;
     }
 
     public void unblockZUp(int i, int j, int k)
     {
-        canMoveZDownLayout[i][j][k] = true;
+        canMoveZDownLayout[i][j][k + 1] = true;
     }
 
 
@@ -329,36 +405,26 @@ class Maze
         ySize = ySizeIn;
         zSize = zSizeIn;
         // we cannot move off the maze
-        canMoveXDownLayout = new Boolean[xSize - 1][][];
-        for ( int i = 0; i < xSize-1; i ++ ) {
-        	canMoveXDownLayout[i] = new Boolean[ySize][];
-        	for ( int j = 0; j < ySize; j ++ ) {
-        		canMoveXDownLayout[i][j] = new Boolean[zSize];
-        	}
-        }
-
-        canMoveYDownLayout = new Boolean[xSize][][];
+        canMoveXDownLayout = new boolean[xSize][][];
+        canMoveYDownLayout = new boolean[xSize][][];
+        canMoveZDownLayout = new boolean[xSize][][];
         for ( int i = 0; i < xSize; i ++ ) {
-        	canMoveYDownLayout[i] = new Boolean[ySize - 1][];
-        	for ( int j = 0; j < ySize - 1; j ++ ) {
-        		canMoveYDownLayout[i][j] = new Boolean[zSize];
-        	}
-        }
-
-        canMoveZDownLayout = new Boolean[xSize][][];
-        for ( int i = 0; i < xSize; i ++ ) {
-        	canMoveZDownLayout[i] = new Boolean[ySize][];
+        	canMoveXDownLayout[i] = new boolean[ySize][];
+        	canMoveYDownLayout[i] = new boolean[ySize][];
+        	canMoveZDownLayout[i] = new boolean[ySize][];
         	for ( int j = 0; j < ySize; j ++ ) {
-        		canMoveZDownLayout[i][j] = new Boolean[zSize - 1];
+        		canMoveXDownLayout[i][j] = new boolean[zSize];
+        		canMoveYDownLayout[i][j] = new boolean[zSize];
+        		canMoveZDownLayout[i][j] = new boolean[zSize];
         	}
         }
 
         
         // so we only need width-1 x height wall bools (i.e. we don't need one on the left edge)
-//        canMoveRightLayout = new Boolean[width - 1, height];
+//        canMoveRightLayout = new boolean[width - 1, height];
         // we cannot move off the maze
         // so we only need width x (height - 1) wall bools (i.e. we can't move off the bottom edge)
-//        canMoveDownLayout = new Boolean[width, height - 1];
+//        canMoveDownLayout = new boolean[width, height - 1];
     }
 
     // this is another common form for a graph which is, for mazes, far more conicse than an incidence matrix
@@ -418,10 +484,10 @@ class Maze
     }
 
 
-    public Boolean[,] generateGraphIndicenceMatrix()
+    public boolean[,] generateGraphIndicenceMatrix()
     {
         int nodeCount = width * height;
-        Boolean[,] incidenceMatrix = new Boolean[nodeCount, nodeCount];
+        boolean[,] incidenceMatrix = new boolean[nodeCount, nodeCount];
         for (int j = 0; j < height; ++j)
         {
             for (int i = 0; i < width; ++i)
@@ -526,10 +592,12 @@ class Wall {
             	otherX = x;
             	otherY = y;
             	otherZ = z - 1;
+            	break;
             case ZUP:
             	otherX = x;
             	otherY = y;
             	otherZ = z + 1;
+            	break;
             default:
                 otherX = -1;
                 otherY = -1;
