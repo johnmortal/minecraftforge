@@ -11,27 +11,26 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraftforge.event.entity.living.LivingEvent.LivingJumpEvent;
+import net.minecraftforge.event.entity.player.BonemealEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 public class BigMaze {
-// 5 x 5 x 4 (counting boundary
-// put stepping blocks on lowest x if x + y + z == 0 mod 2
-// and on highest x if x + y + z == 1 mod 2
 	
 	// this is an interior size, 
 	// meaning it is a size without floor, ceiling, or walls that separate rooms
-	
-	String[][] roomLayout;
-	
-	static int interiorXSize;
-	static int interiorYSize;
-	static int interiorZSize;
+	static int interiorXSize = 4;
+	static int interiorYSize = 4;
+	static int interiorZSize = 4;
 
-	static int mazeXSize = 7;
-	static int mazeYSize = 6;
-	static int mazeZSize = 5;
+	// how many rooms in maze measured in each direction
+	static int mazeXSize = 14;
+	static int mazeYSize = 14;
+	static int mazeZSize = 14;
 	
+	static boolean useKruskal = true;
+	
+	static boolean invertWalls = false; // if this is true it doesn't create a maze, creates the complement of a maze
+		
 	static IBlockState obsidian = Blocks.OBSIDIAN.getDefaultState();
 	static IBlockState glow = Blocks.SEA_LANTERN.getDefaultState();
 	static IBlockState glass = Blocks.GLASS.getDefaultState();
@@ -39,14 +38,16 @@ public class BigMaze {
 	static IBlockState red = Blocks.RED_GLAZED_TERRACOTTA.getDefaultState();
 	static IBlockState green = Blocks.GREEN_GLAZED_TERRACOTTA.getDefaultState();
 	static IBlockState yellow = Blocks.YELLOW_GLAZED_TERRACOTTA.getDefaultState();
+	
 	static IBlockState xWall = yellow;
 	static IBlockState yWall = green;
 	static IBlockState zWall = red;
 	
+	
 //	static boolean mazeIsCorporealNow = false;
 	
 	@SubscribeEvent
-	public void maze(LivingJumpEvent event) {
+	public void maze(BonemealEvent event) {
 		
 		World world = event.getEntity().getEntityWorld();
 		if (! (event.getEntity() instanceof EntityPlayer)) return;
@@ -66,12 +67,11 @@ public class BigMaze {
 	static void createMaze(World world, int x, int y, int z, int xSize, int ySize, int zSize) {
 		if (world.isRemote) return; // this needs to run on the server world
 
-		Maze maze = MazeGenerator.GenerateKruskalMaze3D(xSize, ySize, zSize);
-		
-		interiorXSize = 4;
-		interiorYSize = 4;
-		interiorZSize = 4;
-		
+		Maze maze;
+		if ( useKruskal ) 
+			maze = MazeGenerator.GenerateKruskalMaze3D(xSize, ySize, zSize);
+		else 
+			maze = MazeGenerator.GenerateRecursiveBacktrackerMaze(xSize, ySize, zSize, xSize / 2, ySize / 2, zSize / 2);
 		
 		
 		createOuterWalls(world, x, y, z, maze);
@@ -247,7 +247,7 @@ public class BigMaze {
 					int xCorner = x + i * xStep;
 					int yCorner = y + j * yStep;
 					int zCorner = z + k * zStep;
-					if ( maze.canMoveXUp(i, j, k) && i < maze.xSize - 1 ) {
+					if ( (maze.canMoveXUp(i, j, k) == invertWalls) && i < maze.xSize - 1 ) {
 						for ( int v = 0; v < interiorYSize; v ++ ) {
 							for ( int w = 0; w < interiorZSize; w ++ ) {
 								BlockPos pos = new BlockPos(xCorner + xStep, yCorner + v + 1, zCorner + w + 1);
@@ -255,7 +255,7 @@ public class BigMaze {
 							}
 						}
 					}
-					if ( maze.canMoveYUp(i, j, k) && j < maze.ySize - 1 ) {
+					if ( (maze.canMoveYUp(i, j, k) == invertWalls) && j < maze.ySize - 1 ) {
 						for ( int u = 0; u < interiorXSize; u ++ ) {
 							for ( int w = 0; w < interiorZSize; w ++ ) {
 								BlockPos pos = new BlockPos(xCorner + u + 1, yCorner + yStep, zCorner + w + 1);
@@ -263,7 +263,7 @@ public class BigMaze {
 							}
 						}
 					}
-					if ( maze.canMoveZUp(i, j, k) && k < maze.zSize - 1 ) {
+					if ( (maze.canMoveZUp(i, j, k) == invertWalls) && k < maze.zSize - 1 ) {
 						for ( int u = 0; u < interiorXSize; u ++ ) {
 							for ( int v = 0; v < interiorYSize; v ++ ) {
 								BlockPos pos = new BlockPos(xCorner + u + 1, yCorner + v + 1, zCorner + zStep);
@@ -628,10 +628,8 @@ class MazeGenerator
         // we identify cell (x,y) of a maize 
         // with the integer y * width + x 
         // for the purpose of this
-        Maze maze = new Maze(xSize, zSize, zSize);
+        Maze maze = new Maze(xSize, ySize, zSize);
         Random random = new Random();
-
-        int lastDirection = Wall.XDOWN; // start with an initial "last direction"
 
         Position startPosition = new Position(startX, startY, startZ); // start position 
         int cellCount = xSize * ySize * zSize;
@@ -660,8 +658,7 @@ class MazeGenerator
                 unvisitedNeighbors.add(Wall.ZUP);
             if ( unvisitedNeighbors.size() > 0 )
             {
-                int nextDirection;
-                nextDirection = unvisitedNeighbors.get(random.nextInt(unvisitedNeighbors.size()));
+                int nextDirection = unvisitedNeighbors.get(random.nextInt(unvisitedNeighbors.size()));
                 stack.push(current);
                 switch (nextDirection)
                 {
@@ -682,15 +679,15 @@ class MazeGenerator
                         current.x = current.x + 1;
                         break;
                     case Wall.ZDOWN:
-                        maze.unblockXDown(current.x, current.y, current.z);
+                        maze.unblockZDown(current.x, current.y, current.z);
                         current.z = current.z - 1;
                         break;
                     case Wall.ZUP:
-                        maze.unblockXUp(current.x, current.y, current.z);
+                        maze.unblockZUp(current.x, current.y, current.z);
                         current.z = current.z + 1;
                         break;
                 }
-                visited.add(current.z * xSize * zSize + current.y * xSize + current.x);
+                visited.add(current.z * xSize * ySize + current.y * xSize + current.x);
             }
             else if ( stack.size() > 0 )
             {
