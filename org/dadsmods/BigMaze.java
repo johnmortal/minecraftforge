@@ -18,16 +18,16 @@ public class BigMaze {
 	
 	// this is an interior size, 
 	// meaning it is a size without floor, ceiling, or walls that separate rooms
-	static int interiorXSize = 4;
-	static int interiorYSize = 4;
-	static int interiorZSize = 4;
+	static int interiorXSize = 10;
+	static int interiorYSize = 10;
+	static int interiorZSize = 10;
 
 	// how many rooms in maze measured in each direction
-	static int mazeXSize = 14;
-	static int mazeYSize = 14;
-	static int mazeZSize = 14;
+	static int mazeXSize = 4;
+	static int mazeYSize = 4;
+	static int mazeZSize = 4;
 	
-	static boolean useKruskal = true;
+	static boolean useKruskal = false; // which maze generation algorithm to use
 	
 	static boolean invertWalls = false; // if this is true it doesn't create a maze, creates the complement of a maze
 		
@@ -659,7 +659,7 @@ class MazeGenerator
             if ( unvisitedNeighbors.size() > 0 )
             {
                 int nextDirection = unvisitedNeighbors.get(random.nextInt(unvisitedNeighbors.size()));
-                stack.push(current);
+                stack.push(new Position(current.x, current.y, current.z)); // different object
                 switch (nextDirection)
                 {
                     case Wall.YDOWN:
